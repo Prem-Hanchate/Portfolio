@@ -24,6 +24,7 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
   const [progress, setProgress] = useState(0);
   const [autoAdvancing, setAutoAdvancing] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   const rafRef = useRef<number | null>(null);
   const autoStartRef = useRef<{ time: number; startProgress: number } | null>(null);
@@ -61,6 +62,11 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
   }, [progress]);
 
   useEffect(() => {
+    const touchCapable = window.matchMedia("(hover: none) and (pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+    setIsTouchDevice(touchCapable);
+  }, []);
+
+  useEffect(() => {
     if (progress >= 1) {
       if (completionTriggeredRef.current) return;
       completionTriggeredRef.current = true;
@@ -76,6 +82,23 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
   }, [progress, onComplete]);
 
   useEffect(() => {
+    if (!isTouchDevice || progress > 0) return;
+
+    const completeOnFirstTouch = () => {
+      if (autoAdvancing) return;
+      setProgress(1);
+    };
+
+    window.addEventListener("touchstart", completeOnFirstTouch, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", completeOnFirstTouch);
+    };
+  }, [autoAdvancing, isTouchDevice, progress]);
+
+  useEffect(() => {
+    if (isTouchDevice) return;
+
     const wheelHandler = (event: WheelEvent) => {
       event.preventDefault();
       if (autoAdvancing) return;
@@ -167,9 +190,11 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
       window.removeEventListener("touchend", touchEndHandler);
       window.removeEventListener("touchcancel", touchEndHandler);
     };
-  }, [autoAdvancing]);
+  }, [autoAdvancing, isTouchDevice, progress]);
 
   useEffect(() => {
+    if (isTouchDevice) return;
+
     if (!autoAdvancing) return;
 
     const step = (now: number) => {
@@ -195,9 +220,11 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [autoAdvancing]);
+  }, [autoAdvancing, isTouchDevice]);
 
   useEffect(() => {
+    if (isTouchDevice) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -350,7 +377,7 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
       window.removeEventListener("resize", regenDots);
       window.removeEventListener("mousemove", moveHandler);
     };
-  }, []);
+  }, [isTouchDevice]);
 
   if (hidden) {
     return null;
@@ -361,7 +388,7 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
   const fieldFade = 1 - clamp((progress - 0.58) / 0.28, 0, 1);
 
   return (
-    <div className="fixed inset-0 z-[60]" style={{ touchAction: "none" }}>
+    <div className="fixed inset-0 z-[60]" style={{ touchAction: isTouchDevice ? "auto" : "none" }}>
       <div
         className="absolute inset-0 transition-opacity duration-500"
         style={{
@@ -440,7 +467,7 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
             <span className="h-2 w-[3px] rounded-full bg-white/90" />
           </div>
           <p className="mt-3 text-[10px] uppercase tracking-[0.4em] text-white/80" style={{ fontFamily: portalHintFont }}>
-            Swipe to unveil
+            {isTouchDevice ? "Tap to unveil" : "Scroll to unveil"}
           </p>
         </div>
       </div>
