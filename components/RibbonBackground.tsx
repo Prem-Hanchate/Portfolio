@@ -3,6 +3,9 @@
 import React, { useEffect, useRef } from "react";
 import { Renderer, Transform, Vec3, Color, Polyline } from "ogl";
 
+type OGLVec3Instance = InstanceType<typeof Vec3>;
+type OGLPolylineInstance = InstanceType<typeof Polyline>;
+
 interface RibbonBackgroundProps {
   colors?: string[];
   baseSpring?: number;
@@ -33,7 +36,7 @@ export default function RibbonBackground({
   backgroundColor = [0.024, 0.024, 0.027, 1],
 }: RibbonBackgroundProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef<Renderer | null>(null);
+  const rendererRef = useRef<InstanceType<typeof Renderer> | null>(null);
   const frameIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -70,10 +73,10 @@ export default function RibbonBackground({
     const lines: {
       spring: number;
       friction: number;
-      mouseVelocity: Vec3;
-      mouseOffset: Vec3;
-      points: Vec3[];
-      polyline: Polyline;
+      mouseVelocity: OGLVec3Instance;
+      mouseOffset: OGLVec3Instance;
+      points: OGLVec3Instance[];
+      polyline: OGLPolylineInstance;
     }[] = [];
 
     const vertex = `
@@ -165,12 +168,12 @@ export default function RibbonBackground({
         friction,
         mouseVelocity: new Vec3(),
         mouseOffset,
-        points: [] as Vec3[],
-        polyline: {} as Polyline,
+        points: [] as OGLVec3Instance[],
+        polyline: {} as OGLPolylineInstance,
       };
 
       const count = pointCount;
-      const points: Vec3[] = [];
+      const points: OGLVec3Instance[] = [];
       for (let i = 0; i < count; i++) {
         points.push(new Vec3());
       }

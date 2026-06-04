@@ -67,6 +67,8 @@ const getAnchorAndDir = (
 
 type Vec2 = [number, number];
 type Vec3 = [number, number, number];
+type OGLRendererInstance = InstanceType<typeof OGLRenderer>;
+type OGLMeshInstance = InstanceType<typeof Mesh>;
 
 interface Uniforms {
   iTime: { value: number };
@@ -103,11 +105,11 @@ export default function LightRays({
 }: LightRaysProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
-  const rendererRef = useRef<OGLRenderer | null>(null);
+  const rendererRef = useRef<OGLRendererInstance | null>(null);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
   const smoothMouseRef = useRef({ x: 0.5, y: 0.5 });
   const animationIdRef = useRef<number | null>(null);
-  const meshRef = useRef<Mesh | null>(null);
+  const meshRef = useRef<OGLMeshInstance | null>(null);
   const cleanupFunctionRef = useRef<(() => void) | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const [isVisible, setIsVisible] = useState(false);
