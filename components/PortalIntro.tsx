@@ -31,6 +31,7 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dotsRef = useRef<DotPoint[]>([]);
   const mouseRef = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
+  const touchStartRef = useRef<{ x: number; y: number; progress: number } | null>(null);
   const frameRef = useRef(0);
   const progressRef = useRef(0);
   const completionTriggeredRef = useRef(false);
@@ -110,12 +111,61 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
       });
     };
 
+    const touchStartHandler = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+
+      const touch = event.touches[0];
+      touchStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        progress: progressRef.current,
+      };
+    };
+
+    const touchMoveHandler = (event: TouchEvent) => {
+      if (autoAdvancing || !touchStartRef.current || event.touches.length !== 1) return;
+
+      event.preventDefault();
+
+      const touch = event.touches[0];
+      const deltaY = touchStartRef.current.y - touch.clientY;
+      const deltaX = Math.abs(touch.clientX - touchStartRef.current.x);
+
+      if (deltaX > 24 && Math.abs(deltaY) < 12) {
+        return;
+      }
+
+      const step = clamp(Math.abs(deltaY) / 1200, 0.008, 0.08);
+      const direction = deltaY >= 0 ? 1 : -1;
+
+      setProgress((prev) => {
+        const next = clamp(touchStartRef.current!.progress + direction * step, 0, 1);
+        if (next >= 0.3 && next < 1) {
+          setAutoAdvancing(true);
+          autoStartRef.current = { time: performance.now(), startProgress: next };
+        }
+        return next;
+      });
+    };
+
+    const touchEndHandler = () => {
+      touchStartRef.current = null;
+    };
+
     window.addEventListener("wheel", wheelHandler, { passive: false });
     window.addEventListener("keydown", keyHandler);
+    window.addEventListener("touchstart", touchStartHandler, { passive: true });
+    window.addEventListener("touchmove", touchMoveHandler, { passive: false });
+    window.addEventListener("touchend", touchEndHandler);
+    window.addEventListener("touchcancel", touchEndHandler);
 
     return () => {
       window.removeEventListener("wheel", wheelHandler);
       window.removeEventListener("keydown", keyHandler);
+      window.removeEventListener("touchstart", touchStartHandler);
+      window.removeEventListener("touchmove", touchMoveHandler);
+      window.removeEventListener("touchend", touchEndHandler);
+      window.removeEventListener("touchcancel", touchEndHandler);
     };
   }, [autoAdvancing]);
 
@@ -311,7 +361,7 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
   const fieldFade = 1 - clamp((progress - 0.58) / 0.28, 0, 1);
 
   return (
-    <div className="fixed inset-0 z-[60]">
+    <div className="fixed inset-0 z-[60]" style={{ touchAction: "none" }}>
       <div
         className="absolute inset-0 transition-opacity duration-500"
         style={{
@@ -390,7 +440,7 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
             <span className="h-2 w-[3px] rounded-full bg-white/90" />
           </div>
           <p className="mt-3 text-[10px] uppercase tracking-[0.4em] text-white/80" style={{ fontFamily: portalHintFont }}>
-            Scroll to unveil
+            Swipe to unveil
           </p>
         </div>
       </div>
