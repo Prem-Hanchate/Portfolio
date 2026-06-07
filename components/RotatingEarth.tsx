@@ -19,7 +19,6 @@ export default function RotatingEarth({ fullPageBackground = false, opacity = 0.
     if (!ctx) return;
 
     let animationId: number;
-    let rotation = 0;
 
     const resizeCanvas = () => {
       if (fullPageBackground) {
@@ -31,195 +30,224 @@ export default function RotatingEarth({ fullPageBackground = false, opacity = 0.
       }
     };
 
+    const getRadius = () => {
+      if (!fullPageBackground) {
+        return large ? 290 : 260;
+      }
+
+      const viewportWidth = window.innerWidth;
+      if (viewportWidth >= 1440) return 420;
+      if (viewportWidth >= 1280) return 395;
+      if (viewportWidth >= 1024) return 360;
+      return 310;
+    };
+
     resizeCanvas();
     const handleResize = () => resizeCanvas();
     window.addEventListener("resize", handleResize);
 
-    // Simplified continent coordinates (lat/lng paths)
-    const continents = [
-      // North America
-      { points: [[50, -120], [45, -100], [40, -90], [35, -95], [30, -97], [25, -80], [40, -75], [50, -120]] },
-      // South America
-      { points: [[12, -60], [0, -70], [-15, -75], [-30, -65], [-20, -50], [12, -60]] },
-      // Europe
-      { points: [[55, 0], [50, 10], [45, 15], [40, 5], [43, 0], [55, 0]] },
-      // Africa
-      { points: [[37, 10], [20, 30], [10, 40], [0, 35], [-10, 30], [-20, 20], [-30, 25], [-25, 35], [10, 45], [30, 50], [37, 30], [37, 10]] },
-      // Asia
-      { points: [[60, 60], [50, 80], [40, 100], [30, 110], [25, 95], [35, 70], [45, 60], [60, 60]] },
-      // Australia
-      { points: [[-10, 130], [-20, 145], [-35, 150], [-40, 140], [-25, 120], [-10, 130]] },
-      // Greenland
-      { points: [[80, -60], [75, -40], [70, -50], [80, -60]] },
-    ];
+    const TAU = Math.PI * 2;
+    let R = getRadius();
+    const LAT = 10;
+    const LON = 14;
+    const DOTS = 55;
 
-    const generateConnectivityPoints = () => {
-      const points: Array<{ lat: number; lng: number }> = [];
-      
-      // Add random connectivity points around the globe
-      for (let i = 0; i < 52; i++) {
-        points.push({
-          lat: Math.random() * 180 - 90,
-          lng: Math.random() * 360 - 180
-        });
-      }
-      
-      return points;
+    const dots = Array.from({ length: DOTS }, () => {
+      const theta = Math.acos(2 * Math.random() - 1);
+      const phi = Math.random() * TAU;
+      return { theta, phi, size: 1.2 + Math.random() * 2, phase: Math.random() * TAU };
+    });
+
+    const flashes: Array<{
+      a: (typeof dots)[number];
+      b: (typeof dots)[number];
+      life: number;
+      decay: number;
+    }> = [];
+
+    let rotationY = 0;
+    let rotationX = 0;
+    let wobbleTimer = 0;
+    let wobbleCurrent = 0;
+    let wobbleTarget = 0;
+    let wobbleActive = false;
+    let wobbleDuration = 0;
+    let wobbleElapsed = 0;
+    let nextWobble = 120 + Math.random() * 180;
+    let frame = 0;
+    let flashTimer = 0;
+
+    const project = (theta: number, phi: number, cx: number, cy: number) => {
+      const x0 = Math.sin(theta) * Math.cos(phi);
+      const y0 = Math.cos(theta);
+      const z0 = Math.sin(theta) * Math.sin(phi);
+
+      const cosY = Math.cos(rotationY);
+      const sinY = Math.sin(rotationY);
+      const x1 = x0 * cosY - z0 * sinY;
+      const z1 = x0 * sinY + z0 * cosY;
+
+      const cosX = Math.cos(rotationX);
+      const sinX = Math.sin(rotationX);
+      const y2 = y0 * cosX - z1 * sinX;
+      const z2 = y0 * sinX + z1 * cosX;
+
+      return {
+        sx: cx + x1 * R,
+        sy: cy + y2 * R,
+        z: z2,
+        visible: z2 > -0.05,
+      };
     };
 
-    const connectivityPoints = generateConnectivityPoints();
-
-    const latLngToXY = (
-      lat: number,
-      lng: number,
-      centerX: number,
-      centerY: number,
-      radius: number,
-      rotationOffset: number
-    ) => {
-      const adjustedLng = lng + rotationOffset;
-      const phi = ((90 - lat) * Math.PI) / 180;
-      const theta = ((adjustedLng + 180) * Math.PI) / 180;
-
-      const x = centerX + radius * Math.sin(phi) * Math.cos(theta);
-      const y = centerY + radius * Math.cos(phi);
-
-      return { x, y, phi, theta };
-    };
-
-    const isPointVisible = (phi: number, theta: number) => {
-      // Only draw points on the front side of the globe
-      return Math.cos(phi) * Math.cos(theta) > 0;
+    const spawnFlash = () => {
+      const a = dots[Math.floor(Math.random() * DOTS)];
+      const b = dots[Math.floor(Math.random() * DOTS)];
+      if (a === b) return;
+      flashes.push({ a, b, life: 1.0, decay: 0.018 + Math.random() * 0.028 });
     };
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.globalAlpha = opacity;
-      rotation += 0.3;
 
       const centerX = canvas.width / 2;
-      const centerY = fullPageBackground ? canvas.height * 0.5 : canvas.height / 2;
-      const radius = fullPageBackground 
-        ? Math.min(canvas.width, canvas.height) * 0.50
-        : Math.min(canvas.width, canvas.height) * (large ? 0.35 : 0.34);
+      const centerY = fullPageBackground ? canvas.height / 2 + 20 : canvas.height / 2;
 
-      // Draw globe base circle with glow
-      const glowGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.8, centerX, centerY, radius * 1.2);
-      glowGradient.addColorStop(0, "rgba(200, 180, 100, 0.1)");
-      glowGradient.addColorStop(1, "rgba(200, 180, 100, 0)");
-      ctx.fillStyle = glowGradient;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius * 1.2, 0, Math.PI * 2);
-      ctx.fill();
+      R = getRadius();
+      const bg = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, R * 1.4);
+      bg.addColorStop(0, "rgba(0,60,40,0.22)");
+      bg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw continents
-      continents.forEach((continent) => {
-        ctx.fillStyle = fullPageBackground ? "rgba(150, 150, 150, 0.82)" : "rgba(165, 165, 165, 0.78)";
-        ctx.strokeStyle = fullPageBackground ? "rgba(190, 190, 190, 0.6)" : "rgba(200, 200, 200, 0.62)";
-        ctx.lineWidth = 0.8;
+      const step = TAU / 100;
+
+      for (let i = 1; i < LAT; i++) {
+        const theta = (Math.PI / LAT) * i;
         ctx.beginPath();
-
-        let isFirst = true;
-        continent.points.forEach((point) => {
-          const { x, y, phi, theta } = latLngToXY(point[0], point[1], centerX, centerY, radius, rotation);
-          
-          if (isPointVisible(phi, theta)) {
-            if (isFirst) {
-              ctx.moveTo(x, y);
-              isFirst = false;
-            } else {
-              ctx.lineTo(x, y);
-            }
+        let first = true;
+        for (let phi = 0; phi <= TAU + step; phi += step) {
+          const point = project(theta, phi, centerX, centerY);
+          if (!point.visible) {
+            first = true;
+            continue;
           }
-        });
-
-        try {
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        } catch (e) {
-          // Handle path errors silently
+          if (first) {
+            ctx.moveTo(point.sx, point.sy);
+            first = false;
+          } else {
+            ctx.lineTo(point.sx, point.sy);
+          }
         }
-      });
-
-      // Draw connectivity lines between random points
-      connectivityPoints.forEach((point, idx) => {
-        const { x, y, phi, theta } = latLngToXY(point.lat, point.lng, centerX, centerY, radius * 1.15, rotation);
-        
-        if (isPointVisible(phi, theta)) {
-          // Connect to nearby points
-          connectivityPoints.slice(idx + 1).forEach((otherPoint) => {
-            const latDiff = Math.abs(point.lat - otherPoint.lat);
-            const lngDiff = Math.abs(point.lng - otherPoint.lng);
-            const distance = Math.hypot(latDiff, lngDiff);
-
-            if (distance < 25) {
-              const { x: otherX, y: otherY, phi: otherPhi, theta: otherTheta } = latLngToXY(
-                otherPoint.lat,
-                otherPoint.lng,
-                centerX,
-                centerY,
-                radius * 1.15,
-                rotation
-              );
-
-              if (isPointVisible(otherPhi, otherTheta)) {
-                const alpha = Math.max(0, 1 - distance / 25) * 0.3;
-                const boostedAlpha = fullPageBackground ? Math.min(1, alpha * 1.9) : alpha;
-                ctx.strokeStyle = `rgba(255, 180, 100, ${boostedAlpha})`;
-                ctx.lineWidth = 0.6;
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(otherX, otherY);
-                ctx.stroke();
-              }
-            }
-          });
-        }
-      });
-
-      // Draw connectivity dots
-      connectivityPoints.forEach((point) => {
-        const { x, y, phi, theta } = latLngToXY(point.lat, point.lng, centerX, centerY, radius * 1.15, rotation);
-        
-        if (isPointVisible(phi, theta)) {
-          // Outer glow
-          const dotGradient = ctx.createRadialGradient(x, y, 0, x, y, fullPageBackground ? 11 : 8);
-          dotGradient.addColorStop(0, fullPageBackground ? "rgba(255, 170, 38, 0.78)" : "rgba(255, 190, 72, 0.5)");
-          dotGradient.addColorStop(1, "rgba(255, 180, 100, 0)");
-          ctx.fillStyle = dotGradient;
-          ctx.beginPath();
-          ctx.arc(x, y, fullPageBackground ? 11 : 8, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Core dot
-          ctx.fillStyle = fullPageBackground ? "rgba(255, 166, 24, 1)" : "rgba(255, 186, 52, 0.9)";
-          ctx.beginPath();
-          ctx.arc(x, y, fullPageBackground ? 4.2 : 3.2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
-
-      // Draw outer rings
-      const ringScales = [1, 1.1, 1.2, 1.3, 1.4, 1.5];
-      const ringAlphaFull = [0.84, 0.72, 0.62, 0.52, 0.42, 0.34];
-      const ringAlphaNormal = [0.56, 0.49, 0.42, 0.36, 0.31, 0.27];
-      const ringWidthsFull = [2.2, 1.9, 1.7, 1.5, 1.35, 1.2];
-      const ringWidthsNormal = [1.5, 1.4, 1.3, 1.2, 1.1, 1];
-
-      ringScales.forEach((scale, index) => {
-        const alpha = fullPageBackground ? ringAlphaFull[index] : ringAlphaNormal[index];
-        const width = fullPageBackground ? ringWidthsFull[index] : ringWidthsNormal[index];
-        const red = fullPageBackground ? 255 : 255;
-        const green = fullPageBackground ? 186 - index * 6 : 206 - index * 4;
-        const blue = fullPageBackground ? 52 - index * 2 : 96;
-
-        ctx.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-        ctx.lineWidth = width;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius * scale, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(0,220,130,0.32)";
+        ctx.lineWidth = 0.9;
         ctx.stroke();
+      }
+
+      for (let i = 0; i < LON; i++) {
+        const phi = (TAU / LON) * i;
+        ctx.beginPath();
+        let first = true;
+        for (let theta = 0; theta <= Math.PI + step; theta += step) {
+          const point = project(theta, phi, centerX, centerY);
+          if (!point.visible) {
+            first = true;
+            continue;
+          }
+          if (first) {
+            ctx.moveTo(point.sx, point.sy);
+            first = false;
+          } else {
+            ctx.lineTo(point.sx, point.sy);
+          }
+        }
+        ctx.strokeStyle = "rgba(0,220,130,0.32)";
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
+      }
+
+      for (let i = flashes.length - 1; i >= 0; i--) {
+        const flash = flashes[i];
+        const pa = project(flash.a.theta, flash.a.phi, centerX, centerY);
+        const pb = project(flash.b.theta, flash.b.phi, centerX, centerY);
+        if (pa.visible && pb.visible) {
+          const life = flash.life;
+          ctx.beginPath();
+          ctx.moveTo(pa.sx, pa.sy);
+          ctx.lineTo(pb.sx, pb.sy);
+          ctx.strokeStyle = `rgba(255,220,0,${life * 0.9})`;
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(pa.sx, pa.sy, 3.5, 0, TAU);
+          ctx.fillStyle = `rgba(255,235,0,${life})`;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(pb.sx, pb.sy, 3.5, 0, TAU);
+          ctx.fillStyle = `rgba(255,235,0,${life})`;
+          ctx.fill();
+        }
+        flash.life -= flash.decay;
+        if (flash.life <= 0) flashes.splice(i, 1);
+      }
+
+      dots.forEach((dot) => {
+        const point = project(dot.theta, dot.phi, centerX, centerY);
+        if (!point.visible) return;
+
+        const bright = 0.4 + 0.6 * ((point.z + 1) / 2);
+        const pulse = 0.7 + 0.3 * Math.sin(frame * 0.03 + dot.phase);
+
+        const dotGlow = ctx.createRadialGradient(point.sx, point.sy, 0, point.sx, point.sy, dot.size * 3.5);
+        dotGlow.addColorStop(0, `rgba(255,190,0,${bright * pulse * 0.7})`);
+        dotGlow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.beginPath();
+        ctx.arc(point.sx, point.sy, dot.size * 3.5, 0, TAU);
+        ctx.fillStyle = dotGlow;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(point.sx, point.sy, dot.size, 0, TAU);
+        ctx.fillStyle = `rgba(255,210,60,${bright * pulse})`;
+        ctx.fill();
       });
+
+      wobbleTimer++;
+      if (!wobbleActive && wobbleTimer >= nextWobble) {
+        wobbleActive = true;
+        wobbleTimer = 0;
+        wobbleDuration = 20 + Math.random() * 30;
+        wobbleElapsed = 0;
+        wobbleTarget = (Math.random() > 0.5 ? 1 : -1) * (0.002 + Math.random() * 0.004);
+        nextWobble = 120 + Math.random() * 220;
+      }
+
+      if (wobbleActive) {
+        wobbleCurrent += (wobbleTarget - wobbleCurrent) * 0.12;
+        rotationX += wobbleCurrent;
+        wobbleElapsed++;
+        if (wobbleElapsed > wobbleDuration) {
+          wobbleCurrent += (0 - wobbleCurrent) * 0.1;
+          if (Math.abs(wobbleCurrent) < 0.00008) {
+            wobbleActive = false;
+            wobbleCurrent = 0;
+          }
+        }
+      } else {
+        rotationX *= 0.97;
+      }
+
+      rotationY += 0.0018;
+
+      flashTimer++;
+      if (flashTimer >= 35 + Math.floor(Math.random() * 50)) {
+        spawnFlash();
+        flashTimer = 0;
+      }
+
+      frame++;
 
       ctx.globalAlpha = 1;
       animationId = requestAnimationFrame(animate);
@@ -238,7 +266,7 @@ export default function RotatingEarth({ fullPageBackground = false, opacity = 0.
       <canvas
         ref={canvasRef}
         className="fixed inset-0 w-full h-full pointer-events-none"
-        style={{ zIndex: 0 }}
+        style={{ zIndex: 0, opacity }}
       />
     );
   }
@@ -247,7 +275,8 @@ export default function RotatingEarth({ fullPageBackground = false, opacity = 0.
     <div className={`relative w-full ${large ? "aspect-square max-h-[28rem]" : "h-80 md:h-96"} flex items-center justify-center`}>
       <canvas
         ref={canvasRef}
-        className={`w-full h-full ${large ? "[filter:drop-shadow(0_0_52px_rgba(255,186,52,0.42))]" : "[filter:drop-shadow(0_0_40px_rgba(255,206,96,0.25))]"}`}
+        className={`w-full h-full ${large ? "[filter:drop-shadow(0_0_52px_rgba(0,220,130,0.32))]" : "[filter:drop-shadow(0_0_40px_rgba(0,220,130,0.22))]"}`}
+        style={{ opacity }}
       />
     </div>
   );

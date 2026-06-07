@@ -30,71 +30,64 @@ export default function Navbar() {
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? "bg-[#0a0a0a]/95 backdrop-blur-md border-b border-green-500/20"
-          : "bg-transparent"
+        isScrolled ? "bg-[#080b0d]/90 backdrop-blur-md border-b border-emerald-500/10" : "bg-transparent"
       }`}
     >
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="mx-auto flex max-w-none items-center justify-between px-10 py-8 sm:px-12 lg:px-12">
+        <div className="hidden md:flex items-center gap-10 lg:gap-12">
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link, index) => (
-              <motion.a
-                key={index}
-                href={link.href}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="text-gray-300 hover:text-green-400 transition-colors font-mono text-sm relative group"
-              >
-                {link.label}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-400 group-hover:w-full transition-all duration-300" />
-              </motion.a>
-            ))}
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="px-6 py-2 bg-gradient-to-r from-green-500 to-cyan-500 text-white rounded-lg font-mono text-sm hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300"
+          {navLinks.map((link, index) => (
+            <motion.a
+              key={index}
+              href={link.href}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.08 }}
+              className="text-[#d2d2d2] hover:text-white transition-colors font-sans text-[15px] relative"
             >
-              Hire Me
-            </motion.button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden text-green-400"
-          >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+              {link.label}
+            </motion.a>
+          ))}
         </div>
 
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden mt-4 pb-4"
-          >
-            {navLinks.map((link, index) => (
-              <a
-                key={index}
-                href={link.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block py-3 text-gray-300 hover:text-green-400 transition-colors font-mono text-sm border-b border-green-500/10"
-              >
-                {link.label}
-              </a>
-            ))}
-            <button className="w-full mt-4 px-6 py-3 bg-gradient-to-r from-green-500 to-cyan-500 text-white rounded-lg font-mono text-sm">
-              Hire Me
-            </button>
-          </motion.div>
-        )}
+        <motion.button
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 px-8 py-3 text-sm font-bold text-black shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition-transform duration-300 hover:scale-[1.03] hover:shadow-[0_0_30px_rgba(34,211,238,0.28)]"
+        >
+          Hire Me
+        </motion.button>
+
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="md:hidden text-emerald-300"
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="md:hidden px-6 pb-4"
+        >
+          {navLinks.map((link, index) => (
+            <a
+              key={index}
+              href={link.href}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block border-b border-emerald-500/10 py-3 font-mono text-sm text-gray-300 transition-colors hover:text-emerald-300"
+            >
+              {link.label}
+            </a>
+          ))}
+        </motion.div>
+      )}
     </motion.nav>
   );
 }

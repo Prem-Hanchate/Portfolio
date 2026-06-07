@@ -422,7 +422,7 @@ export default function PortalIntro({ onComplete }: PortalIntroProps) {
               transform: `scale(${letterScale})`
             }}
           >
-            A
+            Prem
           </h2>
         </div>
       </div>
