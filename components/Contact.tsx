@@ -2,12 +2,23 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { Mail, Github, Linkedin, Send, MapPin, MessageSquare } from "lucide-react";
 import RotatingEarth from "./RotatingEarth";
 const LightRays = dynamic(() => import("./LightRays"), { ssr: false });
 
 export default function Contact() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusType, setStatusType] = useState<"success" | "error" | null>(null);
+
   const socialLinks = [
     { icon: Github, label: "GitHub", href: "https://github.com/Prem-Hanchate", color: "hover:text-gray-300" },
     { icon: Linkedin, label: "LinkedIn", href: "https://www.linkedin.com/in/prem-h-036304278", color: "hover:text-blue-400" },
@@ -19,6 +30,48 @@ export default function Contact() {
     { icon: Mail, label: "Email", value: "hanchateprem@gmail.com" },
     { icon: MapPin, label: "Location", value: "India / Remote" },
   ];
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setStatusMessage(null);
+    setStatusType(null);
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = (await response.json()) as { message?: string };
+
+      if (!response.ok) {
+        throw new Error(result.message || "Unable to send your message right now.");
+      }
+
+      setStatusType("success");
+      setStatusMessage(result.message || "Message sent successfully. I will reply by email soon.");
+      setFormData({
+        name: "",
+        email: "",
+        subject: "Security Consultation",
+        message: "",
+      });
+    } catch (error) {
+      setStatusType("error");
+      setStatusMessage(error instanceof Error ? error.message : "Something went wrong while sending your message.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <section className="relative min-h-screen bg-[#060606] py-20 overflow-hidden">
@@ -82,12 +135,16 @@ export default function Contact() {
               className="bg-transparent backdrop-blur-[2px] border border-green-500/20 rounded-xl p-8"
             >
               <h3 className="text-2xl font-bold text-white mb-6">Send a Message</h3>
-              <form className="space-y-6">
+              <form className="space-y-6" onSubmit={handleSubmit}>
                 <div>
                   <label className="block text-gray-400 text-sm mb-2 font-mono">Name</label>
                   <input
                     type="text"
-                    placeholder="John Doe"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder=""
+                    required
                     className="w-full px-4 py-3 bg-[#0d0d0d] border border-green-500/30 rounded-lg text-white placeholder-gray-500 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
@@ -96,7 +153,11 @@ export default function Contact() {
                   <label className="block text-gray-400 text-sm mb-2 font-mono">Email</label>
                   <input
                     type="email"
-                    placeholder="john@example.com"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder=""
+                    required
                     className="w-full px-4 py-3 bg-[#0d0d0d] border border-green-500/30 rounded-lg text-white placeholder-gray-500 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
@@ -105,7 +166,11 @@ export default function Contact() {
                   <label className="block text-gray-400 text-sm mb-2 font-mono">Subject</label>
                   <input
                     type="text"
-                    placeholder="Security Consultation"
+                    name="subject"
+                    value={formData.subject}
+                    onChange={handleChange}
+                    placeholder=""
+                    required
                     className="w-full px-4 py-3 bg-[#0d0d0d] border border-green-500/30 rounded-lg text-white placeholder-gray-500 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
@@ -113,18 +178,35 @@ export default function Contact() {
                 <div>
                   <label className="block text-gray-400 text-sm mb-2 font-mono">Message</label>
                   <textarea
+                    name="message"
+                    value={formData.message}
+                    onChange={handleChange}
                     rows={5}
                     placeholder="Tell me about your project..."
+                    required
                     className="w-full px-4 py-3 bg-[#0d0d0d] border border-green-500/30 rounded-lg text-white placeholder-gray-500 focus:border-green-500 focus:outline-none transition-colors resize-none"
                   />
                 </div>
 
+                {statusMessage && (
+                  <p
+                    className={`rounded-lg border px-4 py-3 text-sm ${
+                      statusType === "success"
+                        ? "border-green-500/30 bg-green-500/10 text-green-300"
+                        : "border-red-500/30 bg-red-500/10 text-red-300"
+                    }`}
+                  >
+                    {statusMessage}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  className="group w-full relative px-6 py-3 bg-gradient-to-r from-green-500 to-cyan-500 text-white font-bold rounded-lg overflow-hidden hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300"
+                  disabled={isSubmitting}
+                  className="group w-full relative px-6 py-3 bg-gradient-to-r from-green-500 to-cyan-500 text-white font-bold rounded-lg overflow-hidden hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-2">
-                    Send Message
+                    {isSubmitting ? "Sending..." : "Send Message"}
                     <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />

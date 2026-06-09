@@ -29,6 +29,20 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Contact Form Email Setup
+
+The contact form sends messages through Gmail SMTP and delivers them to `hanchateprem@gmail.com` by default.
+
+Add these environment variables before running the app:
+
+```bash
+GMAIL_USER=your-gmail-address@gmail.com
+GMAIL_APP_PASSWORD=your-gmail-app-password
+CONTACT_RECIPIENT_EMAIL=hanchateprem@gmail.com
+```
+
+Use a Gmail App Password, not your normal Gmail password.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
